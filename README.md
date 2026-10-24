@@ -16,7 +16,7 @@ The daily Hukamnama from Sri Darbar Sahib, with a morning notification showing i
 
 1. **GitHub Pages:** Settings → Pages → Source: **GitHub Actions**.
 2. **Firebase** (free): create a project, add an Android app with package name `com.gurbaniwallpapers.daily_hukamnama`, then in **Settings → Secrets and variables → Actions**:
-   - Variables: `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_SENDER_ID`, `FIREBASE_PROJECT_ID` (from the Firebase Android app's `google-services.json`).
+   - The Firebase client values for project `daily-hukamnama1` are set in `.github/workflows/build.yml` (variables `FIREBASE_API_KEY`, `FIREBASE_APP_ID`, `FIREBASE_SENDER_ID`, `FIREBASE_PROJECT_ID` can override them).
    - Secret: `FIREBASE_SERVICE_ACCOUNT` (a service account key JSON from Firebase → Project settings → Service accounts → Generate new private key).
 3. **AdMob:** set the app ID in `tool/configure_android.py` and the `ADMOB_BANNER_ID` variable. Until then Google's test ads are used.
 4. **Play upload key:** secrets `UPLOAD_KEYSTORE_BASE64` and `UPLOAD_KEYSTORE_PASSWORD` (the same key as Gurbani Wallpapers works).
