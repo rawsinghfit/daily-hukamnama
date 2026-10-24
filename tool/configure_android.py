@@ -1,7 +1,8 @@
 """Patches the android/ folder that `flutter create` generates in the cloud.
 
 - Adds the INTERNET permission and sets the app label.
-- Adds a monochrome notification icon for the daily Hukamnama notification.
+- Adds a monochrome notification icon and a "Daily Hukamnama" notification
+  channel with sound and pop-up, used for the daily notification.
 - Adds the AdMob application ID (ADMOB_APP_ID overrides the one below).
 - Adds R8 keep rules (tool/proguard-rules.pro) so release builds don't crash.
 - Signs release builds with the Play upload key when android/key.properties
@@ -17,6 +18,8 @@ from pathlib import Path
 # Google's test app ID until this app gets its own AdMob app ID.
 ADMOB_APP_ID = "ca-app-pub-3940256099942544~3347511713"
 APP_LABEL = "Daily Hukamnama"
+# Must match "channel_id" in tool/notify_hukamnama.py.
+CHANNEL_ID = "hukamnama"
 
 manifest_path = Path("android/app/src/main/AndroidManifest.xml")
 gradle_path = Path("android/app/build.gradle.kts")
@@ -54,6 +57,9 @@ def patch_manifest() -> None:
         text = text.replace(
             "</application>",
             "    <meta-data\n"
+            '            android:name="com.google.firebase.messaging.default_notification_channel_id"\n'
+            f'            android:value="{CHANNEL_ID}"/>\n'
+            "        <meta-data\n"
             '            android:name="com.google.firebase.messaging.default_notification_icon"\n'
             '            android:resource="@drawable/ic_notification"/>\n'
             "        <meta-data\n"
@@ -64,6 +70,38 @@ def patch_manifest() -> None:
         )
 
     manifest_path.write_text(text)
+
+
+def add_notification_channel() -> None:
+    """Creates the notification channel at launch so notifications make a sound.
+
+    On Android 8+ the channel, not the message, decides sound and pop-up.
+    """
+    activity = next(Path("android/app/src/main").rglob("MainActivity.kt"))
+    package = activity.read_text().split("\n", 1)[0].removeprefix("package ").strip()
+    activity.write_text(f"""package {package}
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import android.os.Bundle
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity() {{
+    override fun onCreate(savedInstanceState: Bundle?) {{
+        super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {{
+            val channel = NotificationChannel(
+                "{CHANNEL_ID}",
+                "Daily Hukamnama",
+                NotificationManager.IMPORTANCE_HIGH,
+            )
+            channel.description = "The first line of each new Hukamnama"
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }}
+    }}
+}}
+""")
 
 
 def add_notification_resources() -> None:
@@ -131,5 +169,6 @@ def patch_gradle() -> None:
 patch_manifest()
 patch_gradle()
 add_notification_resources()
+add_notification_channel()
 shutil.copyfile(proguard_source, proguard_target)
 print(manifest_path.read_text())

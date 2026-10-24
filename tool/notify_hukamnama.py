@@ -83,7 +83,15 @@ def send(service_account: dict, title: str, body: str, date: dt.date) -> None:
                 "priority": "high",
                 "ttl": "43200s",
                 "collapse_key": "hukamnama",
-                "notification": {"tag": "hukamnama", "color": "#C9A24A", "icon": "ic_notification"},
+                "notification": {
+                    "channel_id": "hukamnama",
+                    "tag": "hukamnama",
+                    "color": "#C9A24A",
+                    "icon": "ic_notification",
+                    "sound": "default",
+                    "default_sound": True,
+                    "notification_priority": "PRIORITY_HIGH",
+                },
             },
         }
     }
