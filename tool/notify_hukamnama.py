@@ -9,7 +9,7 @@ The Gurbani text is sent exactly as BaniDB returns it.
 
 Environment:
   FIREBASE_SERVICE_ACCOUNT  service account JSON (repository secret)
-  DRY_RUN=1                 print the notification instead of sending it
+  DRY_RUN=1                 print the notification; don't send or record it
 """
 
 import datetime as dt
@@ -108,8 +108,9 @@ def main() -> int:
     # Don't announce an old Hukamnama, e.g. the first time this runs.
     stale = (dt.date.today() - date).days > 1
     if os.environ.get("DRY_RUN") == "1":
-        print("Dry run: not sending.")
-    elif stale:
+        print("Dry run: not sending or recording.")
+        return 0
+    if stale:
         print("Hukamnama is more than a day old: recording it without sending.")
     else:
         secret = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
