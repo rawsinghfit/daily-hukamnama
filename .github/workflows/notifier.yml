@@ -1,0 +1,50 @@
+name: Hukamnama notifier
+
+# Checks BaniDB every 15 minutes and, when a new Hukamnama appears, sends its
+# first line to every app user (Firebase topic "daily-hukamnama").
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Only print the notification, do not send it'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # records the last date sent in notifier/last-sent.txt
+
+concurrency:
+  group: hukamnama-notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install --quiet google-auth requests
+
+      - name: Check BaniDB and notify
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: python3 tool/notify_hukamnama.py
+
+      - name: Record the date sent
+        run: |
+          if [ -n "$(git status --porcelain notifier)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add notifier
+            git commit -m "Record Hukamnama notification for $(cat notifier/last-sent.txt) [skip ci]"
+            git push
+          fi

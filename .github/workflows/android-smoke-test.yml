@@ -1,0 +1,56 @@
+name: Android smoke test
+
+# Installs the latest test APK on an emulator, opens it, and prints the
+# crash log (if any) plus a screenshot, so startup problems can be found
+# without a phone connected to a computer. Fails if the app has crashed.
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [Build Daily Hukamnama]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download latest test APK
+        run: curl -sSfL -o app.apk "https://github.com/${{ github.repository }}/releases/download/android-test/daily-hukamnama-test.apk"
+
+      - name: Run app on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            adb install -r app.apk
+            adb logcat -c
+            adb shell monkey -p com.gurbaniwallpapers.daily_hukamnama -c android.intent.category.LAUNCHER 1
+            sleep 25
+            echo "===== Crash log ====="
+            adb logcat -d -b crash || true
+            echo "===== App and Flutter log ====="
+            adb logcat -d | grep -E "AndroidRuntime|flutter|FATAL|Ads|Firebase|hukamnama" | tail -200 || true
+            adb exec-out screencap -p > screen.png
+            echo "===== Is the app still running? ====="
+            adb shell pidof com.gurbaniwallpapers.daily_hukamnama
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-screenshot
+          path: screen.png
+          if-no-files-found: ignore

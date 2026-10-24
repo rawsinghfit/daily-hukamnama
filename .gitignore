@@ -1,0 +1,22 @@
+# Generated in the cloud by `flutter create` (see .github/workflows/build.yml)
+/android/
+/web/
+/ios/
+/linux/
+/macos/
+/windows/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+*.iml
+.idea/
+.vscode/
+.metadata
+
+# Python
+__pycache__/
