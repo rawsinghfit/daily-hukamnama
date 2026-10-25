@@ -45,3 +45,31 @@ class ResponseTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WatchTest(unittest.TestCase):
+    def test_watch_stops_once_todays_hukamnama_is_recorded(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        today = n.india_today()
+        body = {
+            "date": {"gregorian": {"year": today.year, "month": today.month, "date": today.day}},
+            "shabads": [{"shabadInfo": {"pageNo": 1}, "verses": [verse("LINE")]}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "last-sent.txt"
+            state.write_text("2000-01-01\n")
+            env = {"WATCH_MINUTES": "60", "DRY_RUN": "0", "FIREBASE_SERVICE_ACCOUNT": "{}"}
+            with mock.patch.object(n, "STATE_FILE", state), \
+                    mock.patch.object(n, "fetch_latest", return_value=body), \
+                    mock.patch.object(n, "send") as send, \
+                    mock.patch.object(n.time, "sleep") as sleep, \
+                    mock.patch.dict(os.environ, env):
+                self.assertEqual(n.main(), 0)
+                self.assertEqual(n.main(), 0)
+            send.assert_called_once()
+            sleep.assert_not_called()
+            self.assertEqual(state.read_text().strip(), today.isoformat())
