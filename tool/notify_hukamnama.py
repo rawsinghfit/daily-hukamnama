@@ -5,16 +5,18 @@ BaniDB and, if its date is newer than the one recorded in
 notifier/last-sent.txt, sends its first line to every app user subscribed to
 the Firebase Cloud Messaging topic, then records the date.
 
-GitHub often starts scheduled runs hours late, so each run can keep watching
-BaniDB (WATCH_MINUTES) until today's Hukamnama appears.
+GitHub often starts scheduled runs late or drops them, so a run that starts
+during the morning window (India time) keeps watching BaniDB until today's
+Hukamnama appears.
 
 The Gurbani text is sent exactly as BaniDB returns it.
 
 Environment:
   FIREBASE_SERVICE_ACCOUNT  service account JSON (repository secret)
   DRY_RUN=1                 print the notification; don't send or record it
-  WATCH_MINUTES=N           keep checking every 2 minutes for up to N minutes
-                            until today's Hukamnama (India date) has been sent
+  WATCH_MINUTES=N           during WATCH_WINDOW, keep checking every 2 minutes
+                            for up to N minutes until today's Hukamnama
+                            (India date) has been sent
 """
 
 import datetime as dt
@@ -31,6 +33,8 @@ STATE_FILE = Path("notifier/last-sent.txt")
 FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 INDIA = dt.timezone(dt.timedelta(hours=5, minutes=30))
 CHECK_EVERY = 120  # seconds
+# India time when the Hukamnama usually appears on BaniDB.
+WATCH_WINDOW = (dt.time(4, 0), dt.time(9, 30))
 
 # Lines at the very start of a shabad that are headings (raag, author,
 # "Salok", the Mool Mantar opening) rather than the first line of the shabad.
@@ -113,8 +117,21 @@ def last_sent() -> str:
     return STATE_FILE.read_text().strip() if STATE_FILE.exists() else ""
 
 
+def india_now() -> dt.datetime:
+    return dt.datetime.now(INDIA)
+
+
 def india_today() -> dt.date:
-    return dt.datetime.now(INDIA).date()
+    return india_now().date()
+
+
+def watch_minutes(now: dt.datetime, limit: int) -> int:
+    """How long a run starting at `now` should watch: until the window closes."""
+    start, end = WATCH_WINDOW
+    if limit <= 0 or not start <= now.time() < end:
+        return 0
+    left = dt.datetime.combine(now.date(), end, INDIA) - now
+    return min(limit, int(left.total_seconds() // 60))
 
 
 def check_once() -> None:
@@ -149,7 +166,7 @@ def check_once() -> None:
 
 
 def main() -> int:
-    watch = int(os.environ.get("WATCH_MINUTES") or 0)
+    watch = watch_minutes(india_now(), int(os.environ.get("WATCH_MINUTES") or 0))
     if watch <= 0 or os.environ.get("DRY_RUN") == "1":
         check_once()
         return 0

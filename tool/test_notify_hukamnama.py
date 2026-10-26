@@ -64,6 +64,7 @@ class WatchTest(unittest.TestCase):
             state.write_text("2000-01-01\n")
             env = {"WATCH_MINUTES": "60", "DRY_RUN": "0", "FIREBASE_SERVICE_ACCOUNT": "{}"}
             with mock.patch.object(n, "STATE_FILE", state), \
+                    mock.patch.object(n, "watch_minutes", return_value=60), \
                     mock.patch.object(n, "fetch_latest", return_value=body), \
                     mock.patch.object(n, "send") as send, \
                     mock.patch.object(n.time, "sleep") as sleep, \
@@ -73,3 +74,17 @@ class WatchTest(unittest.TestCase):
             send.assert_called_once()
             sleep.assert_not_called()
             self.assertEqual(state.read_text().strip(), today.isoformat())
+
+
+class WatchWindowTest(unittest.TestCase):
+    def at(self, hour, minute):
+        return dt.datetime(2026, 10, 26, hour, minute, tzinfo=n.INDIA)
+
+    def test_watches_until_window_closes(self):
+        self.assertEqual(n.watch_minutes(self.at(5, 0), 180), 180)
+        self.assertEqual(n.watch_minutes(self.at(8, 30), 180), 60)
+
+    def test_checks_once_outside_window(self):
+        self.assertEqual(n.watch_minutes(self.at(3, 59), 180), 0)
+        self.assertEqual(n.watch_minutes(self.at(9, 30), 180), 0)
+        self.assertEqual(n.watch_minutes(self.at(5, 0), 0), 0)

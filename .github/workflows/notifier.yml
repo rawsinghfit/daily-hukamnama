@@ -3,17 +3,17 @@ name: Hukamnama notifier
 # When a new Hukamnama appears on BaniDB, sends its first line to every app
 # user (Firebase topic "daily-hukamnama").
 #
-# GitHub often starts scheduled runs late or skips them, so the morning runs
-# (around 4:30-7:30 India time) keep watching BaniDB for up to 3 hours and stop
-# as soon as today's Hukamnama has been sent. The hourly run is a fallback
-# that checks once.
+# GitHub often starts scheduled runs late or skips them, so any scheduled run
+# that starts between 04:00 and 09:30 India time keeps watching BaniDB (up to
+# 3 hours) and stops as soon as today's Hukamnama has been sent. Outside that
+# window a run checks once.
 on:
   schedule:
-    - cron: '50 22 * * *' # 04:20 India time, watches
-    - cron: '35 23 * * *' # 05:05 India time, watches
-    - cron: '25 0 * * *'  # 05:55 India time, watches
-    - cron: '20 1 * * *'  # 06:50 India time, watches
-    - cron: '43 * * * *'  # hourly fallback, checks once
+    - cron: '50 22 * * *' # 04:20 India time
+    - cron: '35 23 * * *' # 05:05 India time
+    - cron: '25 0 * * *'  # 05:55 India time
+    - cron: '20 1 * * *'  # 06:50 India time
+    - cron: '43 * * * *'  # hourly
   workflow_dispatch:
     inputs:
       dry_run:
@@ -46,7 +46,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
-          WATCH_MINUTES: ${{ (github.event_name == 'schedule' && github.event.schedule != '43 * * * *') && '180' || '0' }}
+          WATCH_MINUTES: ${{ github.event_name == 'schedule' && '180' || '0' }}
         run: python3 tool/notify_hukamnama.py
 
       - name: Record the date sent
