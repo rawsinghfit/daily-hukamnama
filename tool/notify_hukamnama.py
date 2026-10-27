@@ -5,9 +5,10 @@ BaniDB and, if its date is newer than the one recorded in
 notifier/last-sent.txt, sends its first line to every app user subscribed to
 the Firebase Cloud Messaging topic, then records the date.
 
-GitHub often starts scheduled runs late or drops them, so a run that starts
-during the morning window (India time) keeps watching BaniDB until today's
-Hukamnama appears.
+GitHub often starts scheduled runs hours late or drops them, so a run that
+starts between midnight and 09:30 India time keeps watching BaniDB until
+today's Hukamnama appears. If it has to stop before then, it asks the
+workflow to start a fresh run (via GITHUB_OUTPUT), so the watch continues.
 
 The Gurbani text is sent exactly as BaniDB returns it.
 
@@ -34,7 +35,7 @@ FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 INDIA = dt.timezone(dt.timedelta(hours=5, minutes=30))
 CHECK_EVERY = 120  # seconds
 # India time when the Hukamnama usually appears on BaniDB.
-WATCH_WINDOW = (dt.time(4, 0), dt.time(9, 30))
+WATCH_WINDOW = (dt.time(0, 0), dt.time(9, 30))
 
 # Lines at the very start of a shabad that are headings (raag, author,
 # "Salok", the Mool Mantar opening) rather than the first line of the shabad.
@@ -165,6 +166,14 @@ def check_once() -> None:
     STATE_FILE.write_text(date.isoformat() + "\n")
 
 
+def request_next_run() -> None:
+    print("Still waiting for today's Hukamnama: asking for another run.")
+    output = os.environ.get("GITHUB_OUTPUT")
+    if output:
+        with open(output, "a") as f:
+            f.write("next_run=true\n")
+
+
 def main() -> int:
     watch = watch_minutes(india_now(), int(os.environ.get("WATCH_MINUTES") or 0))
     if watch <= 0 or os.environ.get("DRY_RUN") == "1":
@@ -180,7 +189,11 @@ def main() -> int:
             check_once()
         except Exception as error:  # BaniDB hiccups shouldn't end the watch
             print(f"::warning::Check failed: {error}", flush=True)
-        if last_sent() >= india_today().isoformat() or time.monotonic() + CHECK_EVERY > deadline:
+        if last_sent() >= india_today().isoformat():
+            return 0
+        if time.monotonic() + CHECK_EVERY > deadline:
+            if watch_minutes(india_now(), 1):
+                request_next_run()
             return 0
         time.sleep(CHECK_EVERY)
 

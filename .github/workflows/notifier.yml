@@ -3,10 +3,11 @@ name: Hukamnama notifier
 # When a new Hukamnama appears on BaniDB, sends its first line to every app
 # user (Firebase topic "daily-hukamnama").
 #
-# GitHub often starts scheduled runs late or skips them, so any scheduled run
-# that starts between 04:00 and 09:30 India time keeps watching BaniDB (up to
-# 3 hours) and stops as soon as today's Hukamnama has been sent. Outside that
-# window a run checks once.
+# GitHub often starts scheduled runs hours late or skips them, so any scheduled
+# run that starts between midnight and 09:30 India time keeps watching BaniDB
+# and stops as soon as today's Hukamnama has been sent. A run that reaches its
+# time limit first starts the next one, so the watch carries on until the
+# Hukamnama is sent or the window closes. Outside the window a run checks once.
 on:
   schedule:
     - cron: '50 22 * * *' # 04:20 India time
@@ -20,9 +21,14 @@ on:
         description: 'Only print the notification, do not send it'
         type: boolean
         default: false
+      watch:
+        description: 'Keep watching during the morning window (used by the notifier itself)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write # records the last date sent in notifier/last-sent.txt
+  actions: write # starts the next watching run
 
 concurrency:
   group: hukamnama-notifier
@@ -31,7 +37,7 @@ concurrency:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    timeout-minutes: 200
+    timeout-minutes: 345
     steps:
       - uses: actions/checkout@v4
 
@@ -43,10 +49,11 @@ jobs:
         run: pip install --quiet google-auth requests
 
       - name: Check BaniDB and notify
+        id: notify
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
-          WATCH_MINUTES: ${{ github.event_name == 'schedule' && '180' || '0' }}
+          WATCH_MINUTES: ${{ (github.event_name == 'schedule' || inputs.watch) && '330' || '0' }}
         run: python3 tool/notify_hukamnama.py
 
       - name: Record the date sent
@@ -59,3 +66,9 @@ jobs:
             git pull --rebase --quiet origin main
             git push
           fi
+
+      - name: Keep watching in a new run
+        if: steps.notify.outputs.next_run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run notifier.yml --ref main -f watch=true

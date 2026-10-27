@@ -85,6 +85,29 @@ class WatchWindowTest(unittest.TestCase):
         self.assertEqual(n.watch_minutes(self.at(8, 30), 180), 60)
 
     def test_checks_once_outside_window(self):
-        self.assertEqual(n.watch_minutes(self.at(3, 59), 180), 0)
         self.assertEqual(n.watch_minutes(self.at(9, 30), 180), 0)
+        self.assertEqual(n.watch_minutes(self.at(23, 59), 180), 0)
         self.assertEqual(n.watch_minutes(self.at(5, 0), 0), 0)
+
+
+class NextRunTest(unittest.TestCase):
+    def test_asks_for_next_run_when_time_runs_out(self):
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        old = {"date": {"gregorian": {"year": 2000, "month": 1, "date": 1}},
+               "shabads": [{"verses": [verse("LINE")]}]}
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "last-sent.txt"
+            state.write_text("2000-01-01\n")
+            output = Path(tmp) / "output"
+            env = {"WATCH_MINUTES": "1", "DRY_RUN": "0", "GITHUB_OUTPUT": str(output)}
+            with mock.patch.object(n, "STATE_FILE", state), \
+                    mock.patch.object(n, "watch_minutes", return_value=1), \
+                    mock.patch.object(n, "fetch_latest", return_value=old), \
+                    mock.patch.object(n.time, "sleep"), \
+                    mock.patch.dict(os.environ, env):
+                self.assertEqual(n.main(), 0)
+            self.assertEqual(output.read_text(), "next_run=true\n")
