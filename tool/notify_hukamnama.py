@@ -6,7 +6,7 @@ notifier/last-sent.txt, sends its first line to every app user subscribed to
 the Firebase Cloud Messaging topic, then records the date.
 
 GitHub often starts scheduled runs hours late or drops them, so a run that
-starts between midnight and 09:30 India time keeps watching BaniDB until
+starts between midnight and 11:00 India time keeps watching BaniDB until
 today's Hukamnama appears. If it has to stop before then, it asks the
 workflow to start a fresh run (via GITHUB_OUTPUT), so the watch continues.
 
@@ -35,7 +35,7 @@ FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 INDIA = dt.timezone(dt.timedelta(hours=5, minutes=30))
 CHECK_EVERY = 120  # seconds
 # India time when the Hukamnama usually appears on BaniDB.
-WATCH_WINDOW = (dt.time(0, 0), dt.time(9, 30))
+WATCH_WINDOW = (dt.time(0, 0), dt.time(11, 0))
 
 # Lines at the very start of a shabad that are headings (raag, author,
 # "Salok", the Mool Mantar opening) rather than the first line of the shabad.

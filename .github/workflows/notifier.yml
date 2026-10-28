@@ -4,7 +4,7 @@ name: Hukamnama notifier
 # user (Firebase topic "daily-hukamnama").
 #
 # GitHub often starts scheduled runs hours late or skips them, so any scheduled
-# run that starts between midnight and 09:30 India time keeps watching BaniDB
+# run that starts between midnight and 11:00 India time keeps watching BaniDB
 # and stops as soon as today's Hukamnama has been sent. A run that reaches its
 # time limit first starts the next one, so the watch carries on until the
 # Hukamnama is sent or the window closes. Outside the window a run checks once.

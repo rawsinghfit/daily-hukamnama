@@ -82,10 +82,10 @@ class WatchWindowTest(unittest.TestCase):
 
     def test_watches_until_window_closes(self):
         self.assertEqual(n.watch_minutes(self.at(5, 0), 180), 180)
-        self.assertEqual(n.watch_minutes(self.at(8, 30), 180), 60)
+        self.assertEqual(n.watch_minutes(self.at(10, 0), 180), 60)
 
     def test_checks_once_outside_window(self):
-        self.assertEqual(n.watch_minutes(self.at(9, 30), 180), 0)
+        self.assertEqual(n.watch_minutes(self.at(11, 0), 180), 0)
         self.assertEqual(n.watch_minutes(self.at(23, 59), 180), 0)
         self.assertEqual(n.watch_minutes(self.at(5, 0), 0), 0)
 
